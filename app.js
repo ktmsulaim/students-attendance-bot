@@ -85,12 +85,8 @@ bot.command('test', ctx => {
     return ctx.reply('Oh You are testing with inline keyboard', Markup.inlineKeyboard([Markup.button.callback('Present', 'present'), Markup.button.callback('Absent', 'absent')]).oneTime().resize())
 })
 
-bot.action('present', ctx => {
-    attendance(ctx, true)
-})
-bot.action('absent', ctx => {
-    attendance(ctx, true)
-})
+bot.action('present', attendanceCB)
+bot.action('absent', attendanceCB)
 
 bot.command('register_group', async ctx => {
     const group_id = ctx.message.chat.id;
@@ -115,14 +111,8 @@ bot.command('register_group', async ctx => {
 
 bot.command(['in', 'out'], attendance)
 
-async function attendance(context, callback = false) {
-    let ctx = {};
-    Object.assign(ctx, context);
-
-    if (callback) {
-        console.log(ctx.update.callback_query);
-        ctx.message = ctx.update.callback_query.message;
-    }
+async function attendance(ctx) {
+   
     // check the sender alreay in the students table
     // insert one if not exists
     // add attendance for today if not done today
@@ -148,7 +138,7 @@ async function attendance(context, callback = false) {
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
-        context.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
+        ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
         return;
     }
 
@@ -159,7 +149,7 @@ async function attendance(context, callback = false) {
     holidates = holidates ? JSON.parse(holidates) : []
 
     if (today.format('dddd') == holiday || holidates.includes(today.format('DD-MM-YYYY'))) {
-        context.reply('Ooh! Are you going to mark the attendance on holiday?');
+        ctx.reply('Ooh! Are you going to mark the attendance on holiday?');
         return;
     }
 
@@ -191,7 +181,7 @@ async function attendance(context, callback = false) {
     }
 
     if (command == '/out') {
-        context.telegram.sendMessage(ctx.message.from.id, 'Hey! are you on leave today?')
+        ctx.telegram.sendMessage(ctx.message.from.id, 'Hey! are you on leave today?')
         console.log(`${name} is leave on today`);
     }
 
@@ -201,13 +191,13 @@ async function attendance(context, callback = false) {
 
     if (!attendanceMarked) {
         console.log("Unable to mark the attendance");
-        context.reply(`Sorry ${name}, there was an error while marking your attendance!`)
+        ctx.reply(`Sorry ${name}, there was an error while marking your attendance!`)
     }
 
     if (attendanceMarked == true) {
         console.log("The attendance was marked");
         const time = moment.unix(ctx.message.date).format('hh:mm:ss a')
-        context.reply(`${name} has marked attendance on ${time}`)
+        ctx.reply(`${name} has marked attendance on ${time}`)
     }
 
     if (attendanceMarked == 'already attended') {
@@ -217,9 +207,113 @@ async function attendance(context, callback = false) {
             data.date = moment.unix(ctx.message.date).format('YYYY-MM-DD HH:mm:ss');
             const time = moment.unix(ctx.message.date).format('hh:mm:ss a')
             await db.updateAttendance(data);
-            context.reply(`${name} has updated attendance on ${time}`)
+            ctx.reply(`${name} has updated attendance on ${time}`)
         } else {
-            context.reply(`${name} has already marked attendance on ${moment(attendance.updated_at ? attendance.updated_at : attendance.created_at).format('hh:mm:ss A')}`)
+            ctx.reply(`${name} has already marked attendance on ${moment(attendance.updated_at ? attendance.updated_at : attendance.created_at).format('hh:mm:ss A')}`)
+        }
+
+    }
+}
+
+async function attendanceCB(ctx) {
+   
+    // check the sender alreay in the students table
+    // insert one if not exists
+    // add attendance for today if not done today
+    const chatType = ctx.chat.type;
+
+    console.log("Chat type should be group:", chatType);
+
+    if (chatType != 'group') {
+        return;
+    }
+
+    /**
+     * Attendance should be between 6:30 - 9:00 
+     */
+    const msg = ctx.update.callback_query;
+    const telegram_id = msg.from.id;
+    const group_id = msg.message.chat.id;
+    const name = msg.from.username;
+    const group_name = msg.message.chat.title
+    const message_time = moment.unix(msg.message.date)
+    const start_time = moment().toDate().setHours(process.env.START_HOUR, process.env.START_MINUTE, 0)
+    const end_time = moment().toDate().setHours(process.env.END_HOUR, process.env.END_MINUTE, 0)
+
+    // if its between 6:30 & 9:00
+    if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
+        ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
+        return;
+    }
+
+    // check is holiday or any holi dates
+    const holiday = process.env.HOLI_DAY
+    const today = moment()
+    let holidates = process.env.HOLI_DATES;
+    holidates = holidates ? JSON.parse(holidates) : []
+
+    if (today.format('dddd') == holiday || holidates.includes(today.format('DD-MM-YYYY'))) {
+        ctx.reply('Ooh! Are you going to mark the attendance on holiday?');
+        return;
+    }
+
+
+    console.log("Checking whether a student is registered with telegram id and group id");
+    const studentExists = await db.isStudentExist(telegram_id, group_id);
+    console.log("The student is :", studentExists);
+
+    if (!studentExists) {
+        const studentData = {
+            group_id,
+            telegram_id,
+            name,
+            group_name,
+        }
+
+        console.log(`A new student is being created: ${name}, Telegram ID: ${telegram_id}, Group: ${group_name} (${group_id})`);
+
+        await db.createStudent(studentData);
+        console.log("A new student was created!");
+    }
+
+    const command = ctx.message.text;
+    const data = {
+        telegram_id,
+        group_id,
+        type: command == '/in' ? 'present' : 'leave',
+        date: moment.unix(ctx.message.date).format('YYYY-MM-DD')
+    }
+
+    if (command == '/out') {
+        ctx.telegram.sendMessage(ctx.message.from.id, 'Hey! are you on leave today?')
+        console.log(`${name} is leave on today`);
+    }
+
+    console.log("Checking the student has attended today");
+
+    const attendanceMarked = await db.markAttendance(data)
+
+    if (!attendanceMarked) {
+        console.log("Unable to mark the attendance");
+        ctx.reply(`Sorry ${name}, there was an error while marking your attendance!`)
+    }
+
+    if (attendanceMarked == true) {
+        console.log("The attendance was marked");
+        const time = moment.unix(ctx.message.date).format('hh:mm:ss a')
+        ctx.reply(`${name} has marked attendance on ${time}`)
+    }
+
+    if (attendanceMarked == 'already attended') {
+        const attendance = await db.getAttendance(data)
+
+        if ((command == '/out' && attendance.type == 'present') || (command == '/in' && attendance.type == 'absent')) {
+            data.date = moment.unix(ctx.message.date).format('YYYY-MM-DD HH:mm:ss');
+            const time = moment.unix(ctx.message.date).format('hh:mm:ss a')
+            await db.updateAttendance(data);
+            ctx.reply(`${name} has updated attendance on ${time}`)
+        } else {
+            ctx.reply(`${name} has already marked attendance on ${moment(attendance.updated_at ? attendance.updated_at : attendance.created_at).format('hh:mm:ss A')}`)
         }
 
     }
