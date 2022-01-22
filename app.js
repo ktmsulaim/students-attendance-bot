@@ -77,7 +77,10 @@ bot.command('attendance_today', async ctx => {
         })
     }
 
-    ctx.replyWithHTML(message);
+    if(message) {
+        ctx.replyWithHTML(message);
+    }
+
 })
 
 bot.command('test', ctx => {
@@ -403,8 +406,11 @@ async function sheduleAttendence() {
                         count++;
                     })
                 }
+
+                if(message) {
+                    bot.telegram.sendMessage(group_id, message, {parse_mode: 'HTML'});
+                }
         
-                bot.telegram.sendMessage(group_id, message, {parse_mode: 'HTML'});
             })
         }
     })
