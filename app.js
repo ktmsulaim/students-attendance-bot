@@ -141,7 +141,9 @@ async function attendance(ctx) {
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
-        ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
+        ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. 
+        Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
+        // ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
         return;
     }
 
@@ -245,10 +247,11 @@ async function attendanceCB(ctx) {
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
-        ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
+        ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. 
+        Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
+        // ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
         return;
     }
-
     // check is holiday or any holi dates
     const holiday = process.env.HOLI_DAY
     const today = moment()
@@ -279,16 +282,16 @@ async function attendanceCB(ctx) {
         console.log("A new student was created!");
     }
 
-    const command = ctx.message.text;
+    const command = msg.message.text;
     const data = {
         telegram_id,
         group_id,
         type: command == '/in' ? 'present' : 'leave',
-        date: moment.unix(ctx.message.date).format('YYYY-MM-DD')
+        date: moment.unix(msg.message.date).format('YYYY-MM-DD')
     }
 
     if (command == '/out') {
-        ctx.telegram.sendMessage(ctx.message.from.id, 'Hey! are you on leave today?')
+        ctx.telegram.sendMessage(msg.message.from.id, 'Hey! are you on leave today?')
         console.log(`${name} is leave on today`);
     }
 
