@@ -6,7 +6,7 @@ import cron from 'node-cron'
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 bot.start(ctx => {
-    const username = ctx.message.from.username;
+    const username = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
     const chatType = ctx.message.chat.type;
 
     if (chatType == 'private') {
@@ -16,6 +16,11 @@ bot.start(ctx => {
         ctx.reply(`Hello ${username}, welcome to ${groupName} group!`)
     }
 });
+
+bot.command('my_name', ctx => {
+    const username = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
+    ctx.reply(`Hey! I'm ${username}`);
+})
 
 bot.hears(['Assalamu Alaikum', 'assalamu alaikum', 'Assalamu alaikum'], ctx => {
     ctx.reply('Wa alaikumussalam');
@@ -133,7 +138,7 @@ async function attendance(ctx) {
 
     const telegram_id = ctx.message.from.id;
     const group_id = ctx.message.chat.id;
-    const name = ctx.message.from.username;
+    const name = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
     const group_name = ctx.message.chat.title
     const message_time = moment.unix(ctx.message.date)
     const start_time = moment().set({hour: process.env.START_HOUR, minute: process.env.START_MINUTE})
@@ -141,8 +146,7 @@ async function attendance(ctx) {
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
-        ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. 
-        Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
+        ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
         // ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
         return;
     }
@@ -239,7 +243,7 @@ async function attendanceCB(ctx) {
     const msg = ctx.update.callback_query;
     const telegram_id = msg.from.id;
     const group_id = msg.message.chat.id;
-    const name = msg.from.username;
+    const name = msg.message.from.username ? msg.message.from.username : (msg.message.from.first_name ? msg.message.from.first_name : 'No name');
     const group_name = msg.message.chat.title
     const message_time = moment.unix(msg.message.date)
     const start_time = moment().set({hour: process.env.START_HOUR, minute: process.env.START_MINUTE})
@@ -247,8 +251,7 @@ async function attendanceCB(ctx) {
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
-        ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. 
-        Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
+        ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
         // ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
         return;
     }
