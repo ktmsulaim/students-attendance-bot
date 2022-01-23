@@ -136,8 +136,8 @@ async function attendance(ctx) {
     const name = ctx.message.from.username;
     const group_name = ctx.message.chat.title
     const message_time = moment.unix(ctx.message.date)
-    const start_time = moment().toDate().setHours(process.env.START_HOUR, process.env.START_MINUTE, 0)
-    const end_time = moment().toDate().setHours(process.env.END_HOUR, process.env.END_MINUTE, 0)
+    const start_time = moment().set({hour: process.env.START_HOUR, minute: process.env.START_MINUTE})
+    const end_time = moment().set({hour: process.env.END_HOUR, minute: process.env.END_MINUTE})
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
@@ -242,8 +242,8 @@ async function attendanceCB(ctx) {
     const name = msg.from.username;
     const group_name = msg.message.chat.title
     const message_time = moment.unix(msg.message.date)
-    const start_time = moment().toDate().setHours(process.env.START_HOUR, process.env.START_MINUTE, 0)
-    const end_time = moment().toDate().setHours(process.env.END_HOUR, process.env.END_MINUTE, 0)
+    const start_time = moment().set({hour: process.env.START_HOUR, minute: process.env.START_MINUTE})
+    const end_time = moment().set({hour: process.env.END_HOUR, minute: process.env.END_MINUTE})
 
     // if its between 6:30 & 9:00
     if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
