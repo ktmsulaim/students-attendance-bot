@@ -62,8 +62,18 @@ bot.action('absent', (ctx) => {
 bot.command('send_morning_reminder', ctx => sendAttendanceReminder())
 
 bot.command('change_env', ctx => {
-    
+    const ktm = ctx.message.from.id;
+
+    if(isKtm(ctx)) {
+        bot.telegram.sendMessage(ktm, 'Enter the key:');
+    }
 })
+
+function isKtm(ctx) {
+    const ktmsulaim = ctx.message.from.username;
+
+    return ktmsulaim == 'ktmsulaim';
+}
 
 
 bot.command('register_group', async ctx => {
@@ -155,7 +165,7 @@ async function attendance(ctx, callback = false) {
     }
 
     // if its between 6:30 & 9:00
-    if (!message_time.isAfter(start_time) || !message_time.isBefore(end_time)) {
+    if (!message_time.isSameOrAfter(start_time) || !message_time.isBefore(end_time)) {
         ctx.reply(`[${message_time.format('DD-MM-YYYY hh:mm:ss a')}] The attendance facility is not available now. Please try again between ${start_time.format('hh:mm a')} and ${end_time.format('hh:mm a')}`)
         // ctx.reply('Hmm! attendance facility is not available now. Please try again between 6:30 am and 9:00 am')
         return;
@@ -352,7 +362,7 @@ async function sendAttendanceOfTheDay(group_id, dateToGet = null) {
 }
 
 // update env and restart the server
-function updateEnv(key, value) {
+async function updateEnv(key, value, ktm) {
     if (key) {
         process.env[key] = value;
 
@@ -366,6 +376,11 @@ function updateEnv(key, value) {
                 return;
             }
             console.log(`stdout: ${stdout}`);
+
+            if(ktm) {
+                const now = moment().format('DD-MM-YYYY hh:mm:ss a')
+                bot.telegram.sendMessage(ktm, `[${now}]\nThe env file has been changed and the pm2 restarted the app.js. Configuration: ${key}=${value}.`)
+            }
         })
     }
 }
