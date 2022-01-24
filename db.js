@@ -32,10 +32,28 @@ var connection = await mysql.createConnection({
 
         return rows[0];
       },
+      getStudentByTelegramID: async function(telegram_id) {
+        const [rows, fields] = await connection.query({ sql: `SELECT * FROM students WHERE telegram_id = ${telegram_id}`})
+
+        return rows && rows.length ? rows[0] : null;
+      },
       createStudent: async function(data) {
         const [inserted] = await connection.query("INSERT INTO `students` SET ?", {telegram_id: data.telegram_id, group_id: data.group_id, group_name: data.group_name, name: data.name});
         console.log(inserted);
         return inserted;
+      },
+      updateStudent: async function(data) {
+        const [studentsRows] = await connection.query("SELECT * FROM `students` WHERE telegram_id = ?", [data.telegram_id])
+
+        if(studentsRows && studentsRows.length) {
+          const student = studentsRows[0];
+          try {
+            await connection.query("UPDATE `students` SET ? WHERE telegram_id = ?", [{name: data.name}, data.telegram_id])
+            return true;
+          } catch (error) {
+            throw error;
+          }
+        }
       },
       hasAttended: async function(data) {
         const telegram_id = data.telegram_id;

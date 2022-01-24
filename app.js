@@ -1,10 +1,102 @@
-import { Telegraf, Markup } from 'telegraf';
+import { Telegraf, Markup, Scenes, session } from 'telegraf';
 import db from './db.js'
 import moment from 'moment'
 import cron from 'node-cron'
 import { exec } from 'child_process'
+import changeEnv from './env.js'
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
+
+/**
+ * Configure wizrads
+ * 1. env-change wizard
+ */
+ const envChangeWizard = new Scenes.WizardScene(
+    'env-wizard', 
+    (ctx) => {
+        ctx.reply('Enter the key:');
+        
+        // save the request user
+        ctx.scene.session.user_id = ctx.from.id;
+        ctx.scene.session.env = {};
+
+        return ctx.wizard.next()
+    },
+    (ctx) => {
+        const key = ctx.message.text;
+
+        if(!key) {
+            return ctx.reply('Please enter a valid key')
+        }
+
+        ctx.scene.session.env.key = key;
+        ctx.reply('Enter the value:');
+
+        return ctx.wizard.next();
+    },
+    async (ctx) => {
+        const key = ctx.scene.session.env.key;
+        const value = ctx.message.text;
+        const user = ctx.scene.session.user_id;
+
+        if(isKtm(ctx)) {
+           updateEnv(key, value, user);
+            ctx.reply(`.env file has been updated!`);
+        } else {
+            ctx.reply("Sorry! You don't sufficiant permission to do that!");
+        }
+        return ctx.scene.leave();
+    }
+)
+
+const studentNameChangeWizard = new Scenes.WizardScene(
+    'student-name-wizard', 
+    async ctx => {
+        const telegram_id = ctx.message.from.id;
+        const student = await db.getStudentByTelegramID(telegram_id);
+
+        if(!student || student == null || student == undefined) {
+            ctx.reply(`Sorry! your data is not stored in our database`);
+            return ctx.scene.leave();
+        }
+
+        ctx.reply(`Hi! ${student.name}, do you want to change your name?`);
+        ctx.reply('Enter your new name:');
+
+        ctx.scene.session.user = {};
+
+        return ctx.wizard.next()
+    },
+    async ctx => {
+        const telegram_id = ctx.message.from.id;
+        const name = ctx.message.text;
+
+        if(!name) {
+            ctx.reply('Please enter a valid name!')
+        }
+
+        const updated = await db.updateStudent({telegram_id, name})
+
+        if(updated) {
+            ctx.reply(`Hey ${name}, Your name has been updated!`)
+            ctx.scene.leave();
+        }
+    }
+
+)
+/**
+* Setting up wizards
+*/
+const stage = new Scenes.Stage([envChangeWizard, studentNameChangeWizard])
+
+/**
+ * Register middlewares
+ * 
+ */
+ bot.use(session())
+ bot.use(stage.middleware())
+
+ /////////////////////////////////////////////
 
 bot.start(ctx => {
     const username = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
@@ -18,20 +110,48 @@ bot.start(ctx => {
     }
 });
 
-bot.command('my_name', ctx => {
-    const username = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
-    ctx.reply(`Hey! I'm ${username}`);
+bot.command('my_name', async ctx => {
+    const telegram_id = ctx.message.from.id;
+    const student = await db.getStudentByTelegramID(telegram_id);
+
+    let username = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
+    
+    if(student) {
+        username = student.name;
+    }
+
+    ctx.reply(`Hey! You are ${username}`);
+})
+
+bot.command('/change_my_name', async ctx => {
+    const chatType = ctx.message.chat.type;
+
+    const student = await db.getStudentByTelegramID(ctx.from.id);
+
+    if(!student) {
+        ctx.reply('Sorry! you are not registered with us!');
+        return;
+    }
+
+    if(chatType != 'private') {
+        ctx.telegram.sendMessage(ctx.message.from.id, `Hey! ${student.name} is your current name. Do you want to change? Click here: /change_my_name`);
+        return;
+    }
+
+
+    ctx.scene.enter('student-name-wizard')
 })
 
 bot.hears(['Assalamu Alaikum', 'assalamu alaikum', 'Assalamu alaikum'], ctx => {
     ctx.reply('Wa alaikumussalam');
 })
 
-bot.command('register_admin', ctx => {
-    // Only proceed if the command is from a group
-    // Check the sender is an admin
+bot.hears(['hi', 'Hi'], ctx => ctx.reply('Hiii!'))
 
+bot.command('settings', ctx => {
+    ctx.reply(`Start Hour: ${process.env.START_HOUR}\nStart Minute: ${process.env.START_MINUTE}`)
 })
+
 
 bot.command('attendance_today', async ctx => {
     if (ctx.message.chat.type != 'group') {
@@ -65,9 +185,10 @@ bot.command('change_env', ctx => {
     const ktm = ctx.message.from.id;
 
     if(isKtm(ctx)) {
-        bot.telegram.sendMessage(ktm, 'Enter the key:');
+        ctx.scene.enter('env-wizard')
     }
 })
+
 
 function isKtm(ctx) {
     const ktmsulaim = ctx.message.from.username;
@@ -249,9 +370,9 @@ async function attendance(ctx, callback = false) {
 async function sheduleAttendence() {
     console.log("The scheduler has started");
 
-    cron.schedule('* 30 6 * * *', sendAttendanceReminder)
+    cron.schedule('30 6 * * *', sendAttendanceReminder)
 
-    cron.schedule('* 0 9 * * *', async () => {
+    cron.schedule('0 9 * * *', async () => {
         const groups = await db.getRegisteredGroups()
 
         if (groups && groups.length) {
@@ -362,9 +483,16 @@ async function sendAttendanceOfTheDay(group_id, dateToGet = null) {
 }
 
 // update env and restart the server
-async function updateEnv(key, value, ktm) {
+function updateEnv(key, value, ktm) {
+    console.log(key, value, ktm);
     if (key) {
-        process.env[key] = value;
+        
+        changeEnv(key, value);
+
+        if(ktm) {
+            const now = moment().format('DD-MM-YYYY hh:mm:ss a')
+            bot.telegram.sendMessage(ktm, `[${now}]\nThe env file has been changed and the pm2 restarted the app.js. Configuration: ${key}=${value}.`)
+        }
 
         exec('pm2 restart app.js', (error, stdout, stderr) => {
             if (error) {
@@ -376,11 +504,6 @@ async function updateEnv(key, value, ktm) {
                 return;
             }
             console.log(`stdout: ${stdout}`);
-
-            if(ktm) {
-                const now = moment().format('DD-MM-YYYY hh:mm:ss a')
-                bot.telegram.sendMessage(ktm, `[${now}]\nThe env file has been changed and the pm2 restarted the app.js. Configuration: ${key}=${value}.`)
-            }
         })
     }
 }
@@ -410,6 +533,9 @@ async function isAdmin(ctx, callback = false) {
     return false;
 }
 
+/**
+ * LAUNCH
+ */
 bot.launch()
 
 // Enable graceful stop
