@@ -93,6 +93,15 @@ const stage = new Scenes.Stage([envChangeWizard, studentNameChangeWizard])
  * Register middlewares
  * 
  */
+bot.use((ctx, next) => {
+    const debug = JSON.parse(process.env.BOT_DEBUG);
+
+    if(debug == true && !isKtm(ctx)) {
+        return;
+    }
+
+    next()
+})
  bot.use(session())
  bot.use(stage.middleware())
 
@@ -168,6 +177,11 @@ bot.command('test', ctx => {
     return ctx.reply('Oh You are testing with inline keyboard', Markup.inlineKeyboard([Markup.button.callback('Present', 'present'), Markup.button.callback('Absent', 'absent')]).oneTime().resize())
 })
 
+bot.command('time', ctx => {
+    const now = moment().format('DD-MM-YYYY hh:mm:ss A')
+    ctx.reply(now)
+})
+
 bot.action('present', (ctx) => {
     attendance(ctx, true)
 })
@@ -191,7 +205,7 @@ bot.command('change_env', ctx => {
 
 
 function isKtm(ctx) {
-    const ktmsulaim = ctx.message.from.username;
+    const ktmsulaim = ctx.from.username;
 
     return ktmsulaim == 'ktmsulaim';
 }
@@ -370,16 +384,27 @@ async function attendance(ctx, callback = false) {
 async function sheduleAttendence() {
     console.log("The scheduler has started");
 
-    cron.schedule('30 6 * * *', sendAttendanceReminder)
+    const start_hour = process.env.START_HOUR ? process.env.START_HOUR : 6;
+    const start_minute = process.env.START_MINUTE ? process.env.START_MINUTE : 30;
+    
+    const end_hour = process.env.END_HOUR ? process.env.END_HOUR : 9;
+    const end_minute = process.env.END_MINUTE ? process.env.END_MINUTE : 0;
 
-    cron.schedule('0 9 * * *', async () => {
+    cron.schedule(`0 ${start_minute} ${start_hour} * * *`, sendAttendanceReminder, { scheduled: true, timezone: 'Asia/Kolkata' })
+
+    cron.schedule(`0 ${end_minute} ${end_hour} * * *`, async () => {
+        console.log("Checking for groups");
         const groups = await db.getRegisteredGroups()
+        console.log("Found groups:", groups.length);
 
         if (groups && groups.length) {
             groups.forEach(async group => {
-                sendAttendanceOfTheDay(group.id);
+                await sendAttendanceOfTheDay(group.group_id);
             })
         }
+    }, {
+        scheduled: true,
+        timezone: 'Asia/Kolkata'
     })
 }
 
@@ -403,9 +428,14 @@ async function sendAttendanceReminder() {
         console.log(`Total groups ${groups.length}`);
         groups.forEach(group => {
             const date = moment().format('DD-MM-YYYY')
-            let message = `<b>${date}</b>\n`;
+            const start_time = moment().set({ hour: process.env.START_HOUR, minute: process.env.START_MINUTE })
+            const end_time = moment().set({ hour: process.env.END_HOUR, minute: process.env.END_MINUTE })
+            
+            let message = `<b>${date}</b>\n\n`;
             message += `അസ്സലാമു അലൈകും,\nപ്രിയപ്പെട്ട വിദ്യാർത്ഥികളെ, സുഖം തന്നെയല്ലേ?`
-            message += `\n<b>ഹാജർ പറയൂ</b>`
+            message += `\n<b>ഹാജർ പറയൂ</b>`;
+            message += `\n\nAttendance Timing: ${start_time.format('hh:mm A')} - ${end_time.format('hh:mm A')}`;
+
             bot.telegram.sendMessage(group.group_id, message, {
                 parse_mode: 'HTML',
                 ...Markup.inlineKeyboard([
@@ -420,11 +450,15 @@ async function sendAttendanceReminder() {
 
 async function sendAttendanceOfTheDay(group_id, dateToGet = null) {
     // check is group registered
+    console.log("Checking whether group is registered, group ID:", group_id);
     const isGroupRegistered = await db.isGroupRegistered(group_id);
 
     if(!isGroupRegistered) {
+        console.log("Group is not registered");
         return;
     }
+
+    console.log("Group registered, continueing");
 
 
     let date = moment().format('YYYY-MM-DD');
@@ -436,11 +470,11 @@ async function sendAttendanceOfTheDay(group_id, dateToGet = null) {
     const present = await db.getAttendanceOfTheDay({ group_id, date, type: 'present' })
     console.log('Present: \n', present);
 
-    let message;
+    let message = "<b>Attendance Report</b>";
     let count = 1;
 
     if (present && present.length) {
-        message = `<b>Present today:</b> \n\n`;
+        message = `\n\n<b>Present today:</b> \n\n`;
         present.forEach((atd) => {
             message += `${count}. ${atd.name} - ${moment(atd.created_at).format('hh:mm:ss a')} \n`;
 
