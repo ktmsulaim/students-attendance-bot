@@ -203,6 +203,8 @@ bot.command('change_env', ctx => {
     }
 })
 
+bot.command('restart', ctx => restartApp())
+
 
 function isKtm(ctx) {
     const ktmsulaim = ctx.from.username;
@@ -399,6 +401,7 @@ async function sheduleAttendence() {
 
         if (groups && groups.length) {
             groups.forEach(async group => {
+                bot.telegram.sendMessage(group.group_id, "<b>Attendance time out!!!</b>", { parse_mode: 'HTML' })
                 await sendAttendanceOfTheDay(group.group_id);
             })
         }
@@ -411,6 +414,7 @@ async function sheduleAttendence() {
 sheduleAttendence()
 
 async function sendAttendanceReminder() {
+    restartApp();
     console.log("checking for registered groups");
 
     const groups = await db.getRegisteredGroups()
@@ -528,17 +532,7 @@ function updateEnv(key, value, ktm) {
             bot.telegram.sendMessage(ktm, `[${now}]\nThe env file has been changed and the pm2 restarted the app.js. Configuration: ${key}=${value}.`)
         }
 
-        exec('pm2 restart app.js', (error, stdout, stderr) => {
-            if (error) {
-                console.log(`error: ${error.message}`);
-                return;
-            }
-            if (stderr) {
-                console.log(`stderr: ${stderr}`);
-                return;
-            }
-            console.log(`stdout: ${stdout}`);
-        })
+        restartApp()
     }
 }
 
@@ -565,6 +559,22 @@ async function isAdmin(ctx, callback = false) {
         return adminUserIds.includes(sender);
     }
     return false;
+}
+
+function restartApp() {
+    exec('pm2 restart app.js', (error, stdout, stderr) => {
+        const now = moment().format("DD-MM-YYYY hh:mm:ss A")
+        bot.telegram.sendMessage(1200098668, "The system has restarted on " + now);
+        if (error) {
+            console.log(`error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.log(`stderr: ${stderr}`);
+            return;
+        }
+        console.log(`stdout: ${stdout}`);
+    })
 }
 
 /**
