@@ -211,8 +211,6 @@ bot.command('register', async ctx => {
     } catch (error) {
         ctx.reply("Sorry! Unable to process the registration")
     }
-
-
 })
 
 bot.hears(['Assalamu Alaikum', 'assalamu alaikum', 'Assalamu alaikum'], ctx => {
@@ -403,6 +401,11 @@ async function attendance(ctx, callback = false) {
         console.log("A new student was created!");
     }
 
+    const student = await db.getStudent(telegram_id, group_id);
+
+    if(student) {
+        name = student.name;
+    }
 
     const data = {
         telegram_id,
@@ -438,7 +441,7 @@ async function attendance(ctx, callback = false) {
 
         if ((command == '/out' && attendance.type == 'present') || (command == '/in' && attendance.type == 'absent')) {
             data.date = moment.unix(message.date).format('YYYY-MM-DD HH:mm:ss');
-            const time = moment.unix(message.date).format('hh:mm:ss a')
+            const time = moment().format('hh:mm:ss a')
             await db.updateAttendance(data);
             ctx.reply(`${name} has updated attendance on ${time}`)
         } else {
