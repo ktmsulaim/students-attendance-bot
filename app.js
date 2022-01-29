@@ -6,6 +6,7 @@ import { exec } from 'child_process'
 import changeEnv from './env.js'
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
+const ktmTelID = 1200098668;
 
 /**
  * Configure wizrads
@@ -271,7 +272,7 @@ async function attendance(ctx, callback = false) {
 
     const group_id = message.chat.id;
     const group_name = message.chat.title
-    const message_time = moment.unix(message.date)
+    const message_time = moment()
     const start_time = moment().set({ hour: process.env.START_HOUR, minute: process.env.START_MINUTE })
     const end_time = moment().set({ hour: process.env.END_HOUR, minute: process.env.END_MINUTE })
     let command = message.text;
@@ -414,7 +415,6 @@ async function sheduleAttendence() {
 sheduleAttendence()
 
 async function sendAttendanceReminder() {
-    restartApp();
     console.log("checking for registered groups");
 
     const groups = await db.getRegisteredGroups()
@@ -564,7 +564,7 @@ async function isAdmin(ctx, callback = false) {
 function restartApp() {
     exec('pm2 restart app.js', (error, stdout, stderr) => {
         const now = moment().format("DD-MM-YYYY hh:mm:ss A")
-        bot.telegram.sendMessage(1200098668, "The system has restarted on " + now);
+        bot.telegram.sendMessage(ktmTelID, "The system has restarted on " + now);
         if (error) {
             console.log(`error: ${error.message}`);
             return;
@@ -576,6 +576,14 @@ function restartApp() {
         console.log(`stdout: ${stdout}`);
     })
 }
+
+/**
+ * Error handling
+ */
+bot.catch((err, ctx) => {
+    restartApp();
+    bot.telegram.sendMessage(ktmTelID, `Bot error: ${err}`)
+})
 
 /**
  * LAUNCH
