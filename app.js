@@ -63,8 +63,8 @@ const studentNameChangeWizard = new Scenes.WizardScene(
 
         ctx.reply(`Hi! ${student.name}, do you want to change your name?`, {
             ...Markup.inlineKeyboard([
-                Markup.button.callback('Yes', 'present'),
-                Markup.button.callback('No', 'absent')
+                Markup.button.callback('Yes', 'yes_change_my_name'),
+                Markup.button.callback('No', 'no_change_my_name')
             ])
         });
 
