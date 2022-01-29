@@ -61,7 +61,7 @@ const studentNameChangeWizard = new Scenes.WizardScene(
             return ctx.scene.leave();
         }
 
-        ctx.reply(`Hi! ${student.name}, do you want to change your name?`, {
+        await ctx.reply(`Hi! ${student.name}, do you want to change your name?`, {
             ...Markup.keyboard([
                 Markup.button.text('Yes'),
                 Markup.button.text('No')
@@ -75,17 +75,24 @@ const studentNameChangeWizard = new Scenes.WizardScene(
     ctx => {
         const confirmation = ctx.message.text;
 
-        if(confirmation != 'Yes' || confirmation != 'No') {
+        console.log("user entered", confirmation);
+
+        const options = ['Yes', 'No']
+
+        if(!options.includes(confirmation)) {
             ctx.reply("Please select Yes or No!");
         }
 
         if(confirmation == 'No') {
-            ctx.reply("You have cancelled the operation! If you want change your name again, please send me /change_my_name")
+            ctx.reply("You have cancelled the operation! If you want to change your name again, please send me /change_my_name", {reply_markup: { remove_keyboard: true }})
             ctx.scene.leave();
         }
 
-        ctx.reply("Enter your new name:");
-        return ctx.wizard.next()
+        if(confirmation == 'Yes') {
+            ctx.reply("Enter your new name:", {reply_markup: { remove_keyboard: true }});
+            return ctx.wizard.next()
+        }
+
     },  
     async ctx => {
         const telegram_id = ctx.message.from.id;
