@@ -63,8 +63,8 @@ const studentNameChangeWizard = new Scenes.WizardScene(
 
         ctx.reply(`Hi! ${student.name}, do you want to change your name?`, {
             ...Markup.inlineKeyboard([
-                Markup.button.callback('Yes', 'yes_change_my_name'),
-                Markup.button.callback('No', 'no_change_my_name')
+                Markup.button.text('Yes'),
+                Markup.button.text('No')
             ])
         });
 
@@ -73,6 +73,17 @@ const studentNameChangeWizard = new Scenes.WizardScene(
         return ctx.wizard.next()
     },
     ctx => {
+        const confirmation = ctx.message.text;
+
+        if(confirmation != 'Yes' || confirmation != 'No') {
+            ctx.reply("Please select Yes or No!");
+        }
+
+        if(confirmation == 'No') {
+            ctx.reply("You have cancelled the operation! If you want change your name again, please send me /change_my_name")
+            ctx.scene.leave();
+        }
+
         ctx.reply("Enter your new name:");
         return ctx.wizard.next()
     },  
@@ -200,16 +211,6 @@ bot.action('absent', (ctx) => {
     attendance(ctx, true)
 })
 
-bot.action('yes_change_my_name', (ctx) => {
-    ctx.deleteMessage()
-    return ctx.wizard.next();
-})
-
-bot.action('no_change_my_name', ctx => {
-    ctx.deleteMessage();
-    ctx.reply("You have cancelled the operation! If you want change your name again, please send me /change_my_name")
-    ctx.scene.leave();
-})
 
 /**
  * ADMIN ONLY COMMANDS
