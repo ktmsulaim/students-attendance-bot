@@ -61,13 +61,21 @@ const studentNameChangeWizard = new Scenes.WizardScene(
             return ctx.scene.leave();
         }
 
-        ctx.reply(`Hi! ${student.name}, do you want to change your name?`);
-        ctx.reply('Enter your new name:');
+        ctx.reply(`Hi! ${student.name}, do you want to change your name?`, {
+            ...Markup.inlineKeyboard([
+                Markup.button.callback('Yes', 'present'),
+                Markup.button.callback('No', 'absent')
+            ])
+        });
 
         ctx.scene.session.user = {};
 
         return ctx.wizard.next()
     },
+    ctx => {
+        ctx.reply("Enter your new name:");
+        return ctx.wizard.next()
+    },  
     async ctx => {
         const telegram_id = ctx.message.from.id;
         const name = ctx.message.text;
@@ -145,6 +153,7 @@ bot.command('/change_my_name', async ctx => {
 
     if(chatType != 'private') {
         ctx.telegram.sendMessage(ctx.message.from.id, `Hey! ${student.name} is your current name. Do you want to change? Click here: /change_my_name`);
+        ctx.deleteMessage();
         return;
     }
 
@@ -189,6 +198,12 @@ bot.action('present', (ctx) => {
 
 bot.action('absent', (ctx) => {
     attendance(ctx, true)
+})
+
+bot.action('yes_change_my_name', (ctx) => ctx.wizard.next())
+
+bot.action('no_change_my_name', ctx => {
+    ctx.scene.leave();
 })
 
 /**
