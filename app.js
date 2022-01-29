@@ -200,9 +200,14 @@ bot.action('absent', (ctx) => {
     attendance(ctx, true)
 })
 
-bot.action('yes_change_my_name', (ctx) => ctx.wizard.next())
+bot.action('yes_change_my_name', (ctx) => {
+    ctx.deleteMessage()
+    return ctx.wizard.next();
+})
 
 bot.action('no_change_my_name', ctx => {
+    ctx.deleteMessage();
+    ctx.reply("You have cancelled the operation! If you want change your name again, please send me /change_my_name")
     ctx.scene.leave();
 })
 
