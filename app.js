@@ -62,7 +62,7 @@ const studentNameChangeWizard = new Scenes.WizardScene(
         }
 
         ctx.reply(`Hi! ${student.name}, do you want to change your name?`, {
-            ...Markup.inlineKeyboard([
+            ...Markup.keyboard([
                 Markup.button.text('Yes'),
                 Markup.button.text('No')
             ])
