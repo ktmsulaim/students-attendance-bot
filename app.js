@@ -159,7 +159,7 @@ bot.command('my_name', async ctx => {
     ctx.reply(`Hey! You are ${username}`);
 })
 
-bot.command('/change_my_name', async ctx => {
+bot.command('change_my_name', async ctx => {
     const chatType = ctx.message.chat.type;
 
     const student = await db.getStudentByTelegramID(ctx.message.from.id);
@@ -177,6 +177,42 @@ bot.command('/change_my_name', async ctx => {
 
 
     ctx.scene.enter('student-name-wizard')
+})
+
+bot.command('register', async ctx => {
+    const chatType = ctx.message.chat.type;
+    
+    if(chatType != 'group') {
+        ctx.reply("Unable to register!")
+        return;
+    }
+    
+    const telegram_id = ctx.message.from.id;
+    const group_id = ctx.message.chat.id;
+    const group_name = ctx.message.chat.title;
+    const name = ctx.message.from.username ? ctx.message.from.username : (ctx.message.from.first_name ? ctx.message.from.first_name : 'No name');
+
+    const isRegistered = await db.isStudentExist(telegram_id, group_id)
+
+    if(isRegistered) {
+        ctx.reply("You are already registered with us!");
+        return;
+    }
+
+    try {
+        await db.createStudent({
+            telegram_id,
+            group_id,
+            group_name,
+            name
+        })
+
+        ctx.reply("You are successfully registered!")
+    } catch (error) {
+        ctx.reply("Sorry! Unable to process the registration")
+    }
+
+
 })
 
 bot.hears(['Assalamu Alaikum', 'assalamu alaikum', 'Assalamu alaikum'], ctx => {
