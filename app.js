@@ -162,7 +162,7 @@ bot.command('my_name', async ctx => {
 bot.command('/change_my_name', async ctx => {
     const chatType = ctx.message.chat.type;
 
-    const student = await db.getStudentByTelegramID(ctx.from.id);
+    const student = await db.getStudentByTelegramID(ctx.message.from.id);
 
     if(!student) {
         ctx.reply('Sorry! you are not registered with us!');
